@@ -10,6 +10,7 @@ sudo apt-get install -y \
   dbus-x11 \
   libglib2.0-dev \
   libglib2.0-dev-bin \
+  libgl1-mesa-dev \
   qt6-base-dev \
   qt6-base-dev-tools \
   qt6-tools-dev-tools
