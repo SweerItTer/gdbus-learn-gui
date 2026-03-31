@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Install the packages needed to configure, build, and display the Qt GUI.
 sudo apt-get update
 sudo apt-get install -y \
   build-essential \

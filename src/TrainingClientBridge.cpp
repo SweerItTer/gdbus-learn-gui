@@ -11,16 +11,19 @@ namespace syncdemo {
 TrainingClientBridge::TrainingClientBridge(QObject* parent)
     : QObject(parent) {}
 
+// Return a copy so callers cannot race with remote callback updates.
 training::public_api::TestInfo TrainingClientBridge::currentInfo() const {
     std::lock_guard<std::mutex> lock(state_mutex_);
     return current_info_;
 }
 
+// The selected path is only GUI state and is not part of TestInfo.
 QString TrainingClientBridge::selectedFilePath() const {
     std::lock_guard<std::mutex> lock(state_mutex_);
     return QString::fromStdString(file_transfer_state_.displayPath());
 }
 
+// Pull the initial snapshot once; later changes come from inherited callbacks.
 void TrainingClientBridge::start() {
     try {
         const auto info = GetTestInfo();
@@ -32,6 +35,7 @@ void TrainingClientBridge::start() {
     }
 }
 
+// Local UI changes are folded back into a complete TestInfo and sent upstream.
 void TrainingClientBridge::submitCheckState(bool checked) {
     auto info = buildUpdatedInfo();
     info.bool_param = checked;
@@ -44,6 +48,7 @@ void TrainingClientBridge::submitText(const QString& text) {
     submitInfo(info);
 }
 
+// Preview updates retain fractional precision while the user is dragging.
 void TrainingClientBridge::submitPreviewPosition(double logical_x) {
     auto info = buildUpdatedInfo();
     const auto parts = math::SplitPreviewCoordinate(logical_x);
@@ -52,6 +57,7 @@ void TrainingClientBridge::submitPreviewPosition(double logical_x) {
     submitInfo(info);
 }
 
+// Commit updates snap to the final integer-aligned coordinate.
 void TrainingClientBridge::submitCommittedPosition(double logical_x) {
     auto info = buildUpdatedInfo();
     const auto parts = math::SplitCommittedCoordinate(logical_x);
@@ -60,6 +66,7 @@ void TrainingClientBridge::submitCommittedPosition(double logical_x) {
     submitInfo(info);
 }
 
+// Store the file path locally and notify the window so it can update buttons.
 void TrainingClientBridge::selectFilePath(const QString& path) {
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -76,6 +83,7 @@ void TrainingClientBridge::selectFilePath(const QString& path) {
     }
 }
 
+// File transfer reuses the upstream SendFileByPath() API directly.
 void TrainingClientBridge::sendSelectedFile() {
     std::string selected_path;
     {
@@ -114,6 +122,8 @@ void TrainingClientBridge::sendSelectedFile() {
     }
 }
 
+// Each remote callback updates just the changed field, then emits a full
+// snapshot so both windows stay consistent.
 void TrainingClientBridge::OnRemoteTestBoolChanged(bool param) {
     auto info = currentInfo();
     info.bool_param = param;
@@ -142,6 +152,8 @@ void TrainingClientBridge::OnRemoteTestStringChanged(const std::string& param) {
     publishInfo(info);
 }
 
+// Full TestInfo broadcasts are the simplest path when the backend already
+// emits a complete synchronized state.
 void TrainingClientBridge::OnRemoteTestInfoChanged(const training::public_api::TestInfo& param) {
     const auto previous = currentInfo();
     if (isSameInfo(previous, param)) {
@@ -152,10 +164,12 @@ void TrainingClientBridge::OnRemoteTestInfoChanged(const training::public_api::T
     publishInfo(param);
 }
 
+// Build the outgoing payload from the latest cached shared state.
 training::public_api::TestInfo TrainingClientBridge::buildUpdatedInfo() const {
     return currentInfo();
 }
 
+// All UI-originated sync updates currently go through SetTestInfo().
 void TrainingClientBridge::submitInfo(training::public_api::TestInfo info) {
     try {
         SetTestInfo(info);
@@ -166,6 +180,7 @@ void TrainingClientBridge::submitInfo(training::public_api::TestInfo info) {
     }
 }
 
+// Signal emission is queued so remote callbacks never touch widgets directly.
 void TrainingClientBridge::publishInfo(const training::public_api::TestInfo& info) {
     QMetaObject::invokeMethod(
         this,
@@ -187,6 +202,7 @@ void TrainingClientBridge::publishError(const QString& message) {
         Qt::QueuedConnection);
 }
 
+// Equality checks suppress redundant UI churn when the same state is replayed.
 bool TrainingClientBridge::isSameInfo(const training::public_api::TestInfo& left,
                                       const training::public_api::TestInfo& right) const {
     return left.bool_param == right.bool_param &&
@@ -195,6 +211,7 @@ bool TrainingClientBridge::isSameInfo(const training::public_api::TestInfo& left
            left.string_param == right.string_param;
 }
 
+// Keep the cached snapshot isolated behind the mutex.
 void TrainingClientBridge::updateCachedInfo(const training::public_api::TestInfo& info) {
     std::lock_guard<std::mutex> lock(state_mutex_);
     current_info_ = info;

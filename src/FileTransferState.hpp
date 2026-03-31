@@ -4,6 +4,8 @@
 
 namespace syncdemo {
 
+// Stores the current file selection so the window can enable/disable sending
+// without mixing UI state into the transport bridge.
 class FileTransferState {
 public:
     void selectFile(std::string path);

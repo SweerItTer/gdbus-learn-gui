@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 
 project(gui_sync_visualizer LANGUAGES C CXX)
 
+# FetchContent is used here so the GUI project does not depend on a hardcoded
+# local checkout of gdbus-learn.
 include(FetchContent)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -11,11 +13,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(ENABLE_QT_GUI "Build the Qt GUI application" ON)
 option(ENABLE_TESTS "Build local tests" ON)
 
+# The dependency is pinned so the GUI build stays reproducible.
 set(GDBUS_LEARN_GIT_REPOSITORY "https://github.com/SweerItTer/gdbus-learn.git" CACHE STRING
     "Git repository for the gdbus-learn dependency.")
 set(GDBUS_LEARN_GIT_TAG "94611e503f2cfcec045cf0bf2ba0fa62bebd16cc" CACHE STRING
     "Git revision for the gdbus-learn dependency.")
 
+# Local helper library for coordinate math and file-selection state.
 add_library(sync_math STATIC
     src/SyncMath.cpp
     src/FileTransferState.cpp
@@ -29,6 +33,7 @@ target_include_directories(sync_math
 if(ENABLE_TESTS)
     enable_testing()
 
+    # The unit test target covers the pure C++ helpers without Qt.
     add_executable(sync_math_tests
         tests/sync_math_tests.cpp
     )
@@ -45,10 +50,12 @@ if(NOT ENABLE_QT_GUI)
     return()
 endif()
 
+# Qt MOC is needed because the bridge and windows use QObject signals/slots.
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
+# Pull the upstream project sources at configure time.
 FetchContent_Declare(
     gdbus_learn_src
     GIT_REPOSITORY "${GDBUS_LEARN_GIT_REPOSITORY}"
@@ -60,6 +67,7 @@ if(NOT gdbus_learn_src_POPULATED)
     FetchContent_Populate(gdbus_learn_src)
 endif()
 
+# Everything below is built from the fetched gdbus-learn source tree.
 set(GDBUS_TEST_ROOT "${gdbus_learn_src_SOURCE_DIR}")
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
@@ -78,6 +86,8 @@ set(GENERATED_BASENAME "${GENERATED_DIR}/training-generated")
 set(GENERATED_C "${GENERATED_BASENAME}.c")
 set(GENERATED_H "${GENERATED_BASENAME}.h")
 
+# Re-run gdbus-codegen locally so this project can build the same interface
+# bindings without depending on another build directory.
 add_custom_command(
     OUTPUT
         "${GENERATED_C}"
@@ -99,6 +109,7 @@ target_include_directories(training_common
         "${GDBUS_COMMON_INCLUDE}"
 )
 
+# These support libraries come from gdbus-learn and are rebuilt in this project.
 add_library(training_utils STATIC
     "${GDBUS_TEST_ROOT}/Common/Sources/utils/ScopedBusConnection.cpp"
     "${GDBUS_TEST_ROOT}/Common/Sources/utils/ScopedBusNameOwner.cpp"
@@ -129,6 +140,7 @@ target_link_libraries(gdbus_generated
         PkgConfig::GLIB
 )
 
+# The demo service executable lets the GUI run standalone for local verification.
 add_library(core STATIC
     "${GDBUS_TEST_ROOT}/ServiceProject/Sources/TrainingService.cpp"
 )
@@ -163,6 +175,7 @@ target_link_libraries(training
         gdbus_generated
 )
 
+# The GUI links against the same client wrapper used by the CLI sample.
 add_library(training_client_wrapper STATIC
     "${GDBUS_TEST_ROOT}/ClientProject/Sources/client/TrainingClient.cpp"
 )
@@ -195,6 +208,7 @@ target_link_libraries(training_service_gui_demo
         core
 )
 
+# Main GUI target.
 add_executable(sync_visualizer
     src/main.cpp
     src/MainWindow.cpp

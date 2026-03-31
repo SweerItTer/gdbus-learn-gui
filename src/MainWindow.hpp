@@ -11,6 +11,8 @@ namespace syncdemo {
 
 class TestInfoCanvas;
 
+// MainWindow owns the visual layout: sync canvas, file-send controls,
+// informational labels, and the bridge that talks to gdbus-learn.
 class MainWindow final : public QMainWindow {
     Q_OBJECT
 

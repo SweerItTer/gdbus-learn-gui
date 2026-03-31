@@ -2,6 +2,8 @@
 
 #include <QApplication>
 
+// The demo intentionally opens two windows in one process so the user can
+// immediately verify synchronized state across differently sized clients.
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
 

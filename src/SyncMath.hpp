@@ -5,6 +5,8 @@
 
 namespace syncdemo::math {
 
+// CoordinateParts mirrors the way TestInfo stores drag positions:
+// integer cells plus a fractional preview part.
 struct CoordinateParts {
     int integer_part{};
     double fractional_part{};
@@ -18,6 +20,7 @@ constexpr int kBaseMargin = 40;
 constexpr int kBaseTop = 120;
 constexpr double kCompareEpsilon = 1e-6;
 
+// Helper functions keep the drag and scaling rules testable outside Qt.
 double Clamp(double value, double minimum, double maximum);
 CoordinateParts SplitPreviewCoordinate(double coordinate);
 CoordinateParts SplitCommittedCoordinate(double coordinate);

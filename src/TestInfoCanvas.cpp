@@ -15,6 +15,8 @@ TestInfoCanvas::TestInfoCanvas(QWidget* parent)
     setMinimumSize(480, 320);
 
     checkbox_->setText(tr("bool_param"));
+    // Dragging is handled via the line edit event filter so text editing still
+    // uses the standard widget behavior.
     line_edit_->installEventFilter(this);
 
     connect(checkbox_, &QCheckBox::toggled, this, [this](bool checked) {
@@ -32,6 +34,7 @@ TestInfoCanvas::TestInfoCanvas(QWidget* parent)
     });
 }
 
+// Remote updates are applied without re-emitting user-edit signals.
 void TestInfoCanvas::applyInfo(const training::public_api::TestInfo& info) {
     is_applying_remote_update_ = true;
     info_ = info;
@@ -42,11 +45,14 @@ void TestInfoCanvas::applyInfo(const training::public_api::TestInfo& info) {
     is_applying_remote_update_ = false;
 }
 
+// Keep the input box aligned when the parent window is resized.
 void TestInfoCanvas::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);
     updateGeometryFromState();
 }
 
+// Treat clicks on the line edit frame as drag gestures, while preserving the
+// editable interior for normal text input.
 bool TestInfoCanvas::eventFilter(QObject* watched, QEvent* event) {
     if (watched != line_edit_) {
         return QWidget::eventFilter(watched, event);
@@ -94,6 +100,7 @@ bool TestInfoCanvas::eventFilter(QObject* watched, QEvent* event) {
     return QWidget::eventFilter(watched, event);
 }
 
+// Geometry comes from shared logical coordinates, not absolute pixels.
 void TestInfoCanvas::updateGeometryFromState() {
     const double scale = math::ScaleFactor(width(), height());
 
@@ -110,6 +117,7 @@ void TestInfoCanvas::updateGeometryFromState() {
     line_edit_->setGeometry(left, top, edit_width, edit_height);
 }
 
+// The current logical coordinate is reconstructed from int + double parts.
 double TestInfoCanvas::currentLogicalX() const {
     return math::ComposeCoordinate({info_.int_param, info_.double_param});
 }

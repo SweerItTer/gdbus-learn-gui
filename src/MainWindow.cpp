@@ -27,6 +27,7 @@ MainWindow::MainWindow(QString title, QWidget* parent)
     auto* file_layout = new QHBoxLayout;
     auto* choose_button = new QPushButton(tr("Select File"));
 
+    // Keep the top-level window simple: sync canvas first, then file actions.
     layout->setContentsMargins(12, 12, 12, 12);
     layout->setSpacing(8);
 
@@ -54,6 +55,7 @@ MainWindow::MainWindow(QString title, QWidget* parent)
     setCentralWidget(central);
     setMinimumSize(560, 400);
 
+    // The canvas emits user edits, and the bridge pushes them to the service.
     connect(canvas_, &TestInfoCanvas::checkStateEdited, bridge_, &TrainingClientBridge::submitCheckState);
     connect(canvas_, &TestInfoCanvas::textEditedByUser, bridge_, &TrainingClientBridge::submitText);
     connect(canvas_, &TestInfoCanvas::dragPreviewRequested, bridge_, &TrainingClientBridge::submitPreviewPosition);
@@ -69,6 +71,7 @@ MainWindow::MainWindow(QString title, QWidget* parent)
     bridge_->start();
 }
 
+// Render the latest synchronized TestInfo in the status summary line.
 void MainWindow::applyInfo(const training::public_api::TestInfo& info) {
     canvas_->applyInfo(info);
     info_label_->setText(
@@ -79,14 +82,17 @@ void MainWindow::applyInfo(const training::public_api::TestInfo& info) {
             .arg(QString::fromStdString(info.string_param)));
 }
 
+// Backend errors stay separate from normal operation messages.
 void MainWindow::showBackendError(const QString& message) {
     status_label_->setText(tr("Backend error: %1").arg(message));
 }
 
+// Normal actions such as connecting or selecting a file are shown here.
 void MainWindow::updateOperationStatus(const QString& message) {
     status_label_->setText(message);
 }
 
+// Only enable sending when the user has actually picked a file.
 void MainWindow::updateSelectedFile(const QString& path, bool has_selection) {
     if (has_selection) {
         file_path_edit_->setText(path);
@@ -97,17 +103,20 @@ void MainWindow::updateSelectedFile(const QString& path, bool has_selection) {
     send_button_->setEnabled(false);
 }
 
+// Use a dedicated result label so file-send success is not easy to miss.
 void MainWindow::showFileTransferResult(bool success, const QString& message) {
     file_transfer_label_->setText(message);
     file_transfer_label_->setStyleSheet(success ? QStringLiteral("color: #1f7a1f;")
                                                 : QStringLiteral("color: #b22222;"));
 }
 
+// QFileDialog is kept in the window so the bridge stays UI-agnostic.
 void MainWindow::chooseFile() {
     const QString selected = QFileDialog::getOpenFileName(this, tr("Select File To Send"));
     bridge_->selectFilePath(selected);
 }
 
+// The bridge performs the actual transport call.
 void MainWindow::sendSelectedFile() {
     bridge_->sendSelectedFile();
 }

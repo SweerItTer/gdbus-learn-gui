@@ -8,6 +8,7 @@
 
 namespace syncdemo {
 
+// TestInfoCanvas is the custom widget that visualizes one TestInfo object.
 class TestInfoCanvas final : public QWidget {
     Q_OBJECT
 
@@ -17,6 +18,7 @@ public:
     void applyInfo(const training::public_api::TestInfo& info);
 
 signals:
+    // These signals describe user-originated changes only.
     void checkStateEdited(bool checked);
     void textEditedByUser(const QString& text);
     void dragPreviewRequested(double logical_x);
@@ -27,6 +29,7 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
+    // Recompute child control geometry after resize or remote sync updates.
     void updateGeometryFromState();
     double currentLogicalX() const;
 

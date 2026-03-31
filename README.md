@@ -246,6 +246,10 @@ dbus-run-session -- bash -lc './build-release/training_service_gui_demo & server
 3. 点击 `Send File`
 4. 观察界面中的文件发送结果标签
 
+备注：
+
+- 发送完成后的文件最终会保存在 `service` 可执行文件所在的同级目录中。
+
 ## 本地验证情况
 
 当前已完成以下验证：

@@ -12,6 +12,8 @@
 
 namespace syncdemo {
 
+// TrainingClientBridge adapts the inheritable gdbus-learn client into Qt
+// signals so the window can stay mostly presentation-focused.
 class TrainingClientBridge final : public QObject, public training::client::TrainingClient {
     Q_OBJECT
 
@@ -22,6 +24,7 @@ public:
     QString selectedFilePath() const;
 
 public slots:
+    // Slots are used for direct signal wiring from the Qt widgets.
     void start();
     void submitCheckState(bool checked);
     void submitText(const QString& text);
@@ -31,6 +34,8 @@ public slots:
     void sendSelectedFile();
 
 signals:
+    // infoChanged mirrors TestInfo synchronization, while the others keep the
+    // file-send path and status messages explicit in the UI.
     void infoChanged(const training::public_api::TestInfo& info);
     void fileSelectionChanged(const QString& path, bool has_selection);
     void fileTransferResultChanged(bool success, const QString& message);
@@ -38,6 +43,8 @@ signals:
     void backendError(const QString& message);
 
 protected:
+    // The upstream client is inheritable, so remote callbacks are translated
+    // here instead of being handled by a polling timer.
     void OnRemoteTestBoolChanged(bool param) override;
     void OnRemoteTestIntChanged(int param) override;
     void OnRemoteTestDoubleChanged(double param) override;
@@ -45,6 +52,8 @@ protected:
     void OnRemoteTestInfoChanged(const training::public_api::TestInfo& param) override;
 
 private:
+    // The bridge keeps a thread-safe copy of the latest TestInfo because
+    // gdbus callbacks can arrive outside the Qt UI thread.
     training::public_api::TestInfo buildUpdatedInfo() const;
     void submitInfo(training::public_api::TestInfo info);
     void publishInfo(const training::public_api::TestInfo& info);
