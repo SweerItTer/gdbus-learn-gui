@@ -1,6 +1,6 @@
 # GUI Sync Visualizer
 
-Qt Widgets demo for `/home/mouj/projects/gdbus-test` that replaces the CLI client with a visual, two-window synchronization test tool.
+Qt Widgets demo for `https://github.com/SweerItTer/gdbus-learn` that replaces the CLI client with a visual, two-window synchronization test tool.
 
 ## Features
 
@@ -14,6 +14,7 @@ Qt Widgets demo for `/home/mouj/projects/gdbus-test` that replaces the CLI clien
 - Reuses `TrainingClient` directly and now handles remote updates through inherited callback overrides instead of polling.
 - Supports file selection and file sending through `TrainingClient::SendFileByPath(...)`.
 - Shows a dedicated file-transfer result label so success or failure is explicit.
+- Pulls `gdbus-learn` through CMake `FetchContent` instead of relying on a hardcoded local source path.
 
 ## Project Layout
 
@@ -70,6 +71,15 @@ Release build:
 ```bash
 cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DENABLE_QT_GUI=ON
 cmake --build build-release
+```
+
+If you want to pin a different upstream revision:
+
+```bash
+cmake -S . -B build-release -G Ninja \
+  -DGDBUS_LEARN_GIT_TAG=<commit-or-tag> \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DENABLE_QT_GUI=ON
 ```
 
 Logic-only test build:

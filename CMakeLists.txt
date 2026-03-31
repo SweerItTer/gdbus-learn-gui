@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.21)
 
 project(gui_sync_visualizer LANGUAGES C CXX)
 
+include(FetchContent)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -9,7 +11,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(ENABLE_QT_GUI "Build the Qt GUI application" ON)
 option(ENABLE_TESTS "Build local tests" ON)
 
-set(GDBUS_TEST_ROOT "/home/mouj/projects/gdbus-test" CACHE PATH "Path to the gdbus-test workspace")
+set(GDBUS_LEARN_GIT_REPOSITORY "https://github.com/SweerItTer/gdbus-learn.git" CACHE STRING
+    "Git repository for the gdbus-learn dependency.")
+set(GDBUS_LEARN_GIT_TAG "94611e503f2cfcec045cf0bf2ba0fa62bebd16cc" CACHE STRING
+    "Git revision for the gdbus-learn dependency.")
 
 add_library(sync_math STATIC
     src/SyncMath.cpp
@@ -44,16 +49,18 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
-foreach(required_path
-    "${GDBUS_TEST_ROOT}/Common"
-    "${GDBUS_TEST_ROOT}/ClientProject"
-    "${GDBUS_TEST_ROOT}/ServiceProject"
-    "${GDBUS_TEST_ROOT}/ServiceProject/Library"
+FetchContent_Declare(
+    gdbus_learn_src
+    GIT_REPOSITORY "${GDBUS_LEARN_GIT_REPOSITORY}"
+    GIT_TAG "${GDBUS_LEARN_GIT_TAG}"
+    GIT_SHALLOW TRUE
 )
-    if(NOT EXISTS "${required_path}")
-        message(FATAL_ERROR "Missing required gdbus-test path: ${required_path}")
-    endif()
-endforeach()
+FetchContent_GetProperties(gdbus_learn_src)
+if(NOT gdbus_learn_src_POPULATED)
+    FetchContent_Populate(gdbus_learn_src)
+endif()
+
+set(GDBUS_TEST_ROOT "${gdbus_learn_src_SOURCE_DIR}")
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets)
 find_package(PkgConfig REQUIRED)
