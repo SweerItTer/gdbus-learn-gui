@@ -8,6 +8,18 @@
 
 namespace syncdemo {
 
+namespace {
+
+// system bus 部署失败时，把排查方向直接带给界面层。
+QString BuildSystemBusHint(const QString& detail) {
+    return QStringLiteral(
+               "Failed to connect to system bus service. "
+               "Ensure com.example.Training is installed on the system bus and the server is running. Details: %1")
+        .arg(detail);
+}
+
+}
+
 TrainingClientBridge::TrainingClientBridge(QObject* parent)
     : QObject(parent) {}
 
@@ -29,9 +41,9 @@ void TrainingClientBridge::start() {
         const auto info = GetTestInfo();
         updateCachedInfo(info);
         publishInfo(info);
-        publishStatus(QStringLiteral("Connected to service"));
+        publishStatus(QStringLiteral("Connected to system bus service"));
     } catch (const std::exception& ex) {
-        publishError(QString::fromUtf8(ex.what()));
+        publishError(BuildSystemBusHint(QString::fromUtf8(ex.what())));
     }
 }
 
@@ -84,7 +96,7 @@ void TrainingClientBridge::selectFilePath(const QString& path) {
 }
 
 // File transfer reuses the upstream SendFileByPath() API directly.
-void TrainingClientBridge::sendSelectedFile() {
+void TrainingClientBridge::sendSelectedFile(const QString& remote_relative_path) {
     std::string selected_path;
     {
         std::lock_guard<std::mutex> lock(state_mutex_);
@@ -96,15 +108,24 @@ void TrainingClientBridge::sendSelectedFile() {
     }
 
     try {
-        if (SendFileByPath(selected_path)) {
+        const std::string remote_path = remote_relative_path.trimmed().toStdString();
+        if (SendFileByPath(selected_path, remote_path)) {
             QMetaObject::invokeMethod(
                 this,
-                [this, selected_path]() {
+                [this, selected_path, remote_relative_path]() {
+                    const QString message =
+                        remote_relative_path.trimmed().isEmpty()
+                            ? QStringLiteral("File sent successfully: %1")
+                                  .arg(QString::fromStdString(selected_path))
+                            : QStringLiteral("File sent to %1")
+                                  .arg(remote_relative_path.trimmed());
                     emit fileTransferResultChanged(
-                        true, QStringLiteral("File sent successfully: %1").arg(QString::fromStdString(selected_path)));
+                        true, message);
                 },
                 Qt::QueuedConnection);
-            publishStatus(QStringLiteral("File sent: %1").arg(QString::fromStdString(selected_path)));
+            publishStatus(remote_relative_path.trimmed().isEmpty()
+                              ? QStringLiteral("File sent: %1").arg(QString::fromStdString(selected_path))
+                              : QStringLiteral("File sent to %1").arg(remote_relative_path.trimmed()));
             return;
         }
         QMetaObject::invokeMethod(
@@ -119,6 +140,48 @@ void TrainingClientBridge::sendSelectedFile() {
             [this, message]() { emit fileTransferResultChanged(false, message); },
             Qt::QueuedConnection);
         publishError(QString::fromUtf8(ex.what()));
+    }
+}
+
+// 下载走后端新增的 DownloadFile 接口。
+void TrainingClientBridge::downloadFile(const QString& remote_relative_path, const QString& local_target_path) {
+    const QString remote = remote_relative_path.trimmed();
+    const QString local = local_target_path.trimmed();
+    if (remote.isEmpty()) {
+        publishError(QStringLiteral("Remote relative path is required"));
+        return;
+    }
+    if (local.isEmpty()) {
+        publishError(QStringLiteral("Local target path is required"));
+        return;
+    }
+
+    try {
+        if (DownloadFile(remote.toStdString(), local.toStdString())) {
+            QMetaObject::invokeMethod(
+                this,
+                [this, remote, local]() {
+                    emit fileTransferResultChanged(
+                        true,
+                        QStringLiteral("Downloaded %1 -> %2").arg(remote, local));
+                },
+                Qt::QueuedConnection);
+            publishStatus(QStringLiteral("Downloaded %1").arg(remote));
+            return;
+        }
+
+        QMetaObject::invokeMethod(
+            this,
+            [this]() { emit fileTransferResultChanged(false, QStringLiteral("File download reported failure")); },
+            Qt::QueuedConnection);
+        publishError(QStringLiteral("File download reported failure"));
+    } catch (const std::exception& ex) {
+        const QString message = QString::fromUtf8(ex.what());
+        QMetaObject::invokeMethod(
+            this,
+            [this, message]() { emit fileTransferResultChanged(false, message); },
+            Qt::QueuedConnection);
+        publishError(message);
     }
 }
 

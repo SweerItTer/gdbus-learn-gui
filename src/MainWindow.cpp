@@ -4,6 +4,7 @@
 
 #include <QFileDialog>
 #include <QFont>
+#include <QFormLayout>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -17,15 +18,22 @@ MainWindow::MainWindow(QString title, QWidget* parent)
     , title_label_(new QLabel(std::move(title)))
     , info_label_(new QLabel(tr("Waiting for first state...")))
     , file_transfer_label_(new QLabel(tr("No file has been sent yet.")))
-    , status_label_(new QLabel(tr("Connecting...")))
+    , status_label_(new QLabel(tr("Connecting to system bus service...")))
     , file_path_edit_(new QLineEdit)
+    , upload_remote_path_edit_(new QLineEdit)
+    , download_remote_path_edit_(new QLineEdit)
+    , download_target_path_edit_(new QLineEdit)
     , send_button_(new QPushButton(tr("Send File")))
+    , download_button_(new QPushButton(tr("Download File")))
     , canvas_(new TestInfoCanvas)
     , bridge_(new TrainingClientBridge(this)) {
     auto* central = new QWidget(this);
     auto* layout = new QVBoxLayout(central);
-    auto* file_layout = new QHBoxLayout;
+    auto* upload_layout = new QHBoxLayout;
+    auto* download_layout = new QHBoxLayout;
+    auto* transfer_form = new QFormLayout;
     auto* choose_button = new QPushButton(tr("Select File"));
+    auto* choose_download_button = new QPushButton(tr("Save As"));
 
     // Keep the top-level window simple: sync canvas first, then file actions.
     layout->setContentsMargins(12, 12, 12, 12);
@@ -38,17 +46,32 @@ MainWindow::MainWindow(QString title, QWidget* parent)
 
     file_path_edit_->setReadOnly(true);
     file_path_edit_->setPlaceholderText(tr("No file selected"));
+    upload_remote_path_edit_->setPlaceholderText(tr("Optional remote path, e.g. gui/demo.txt"));
+    download_remote_path_edit_->setPlaceholderText(tr("Remote relative path, e.g. downloads/sample.bin"));
+    download_target_path_edit_->setPlaceholderText(tr("Local target path"));
     send_button_->setEnabled(false);
+    download_button_->setEnabled(true);
     file_transfer_label_->setStyleSheet(QStringLiteral("color: #666666;"));
 
-    file_layout->addWidget(file_path_edit_, 1);
-    file_layout->addWidget(choose_button);
-    file_layout->addWidget(send_button_);
+    // 上传区保留原有“选文件再发送”的交互。
+    upload_layout->addWidget(file_path_edit_, 1);
+    upload_layout->addWidget(choose_button);
+    upload_layout->addWidget(send_button_);
+
+    // 下载区新增远端路径和本地保存路径输入。
+    download_layout->addWidget(download_target_path_edit_, 1);
+    download_layout->addWidget(choose_download_button);
+    download_layout->addWidget(download_button_);
+
+    transfer_form->addRow(tr("Upload file"), upload_layout);
+    transfer_form->addRow(tr("Upload remote path"), upload_remote_path_edit_);
+    transfer_form->addRow(tr("Download remote path"), download_remote_path_edit_);
+    transfer_form->addRow(tr("Download target"), download_layout);
 
     layout->addWidget(title_label_);
     layout->addWidget(canvas_, 1);
     layout->addWidget(info_label_);
-    layout->addLayout(file_layout);
+    layout->addLayout(transfer_form);
     layout->addWidget(file_transfer_label_);
     layout->addWidget(status_label_);
 
@@ -66,7 +89,9 @@ MainWindow::MainWindow(QString title, QWidget* parent)
     connect(bridge_, &TrainingClientBridge::fileSelectionChanged, this, &MainWindow::updateSelectedFile);
     connect(bridge_, &TrainingClientBridge::fileTransferResultChanged, this, &MainWindow::showFileTransferResult);
     connect(choose_button, &QPushButton::clicked, this, &MainWindow::chooseFile);
+    connect(choose_download_button, &QPushButton::clicked, this, &MainWindow::chooseDownloadTarget);
     connect(send_button_, &QPushButton::clicked, this, &MainWindow::sendSelectedFile);
+    connect(download_button_, &QPushButton::clicked, this, &MainWindow::downloadFile);
 
     bridge_->start();
 }
@@ -116,9 +141,21 @@ void MainWindow::chooseFile() {
     bridge_->selectFilePath(selected);
 }
 
+void MainWindow::chooseDownloadTarget() {
+    const QString selected = QFileDialog::getSaveFileName(this, tr("Select Download Target"));
+    if (!selected.isEmpty()) {
+        download_target_path_edit_->setText(selected);
+    }
+}
+
 // The bridge performs the actual transport call.
 void MainWindow::sendSelectedFile() {
-    bridge_->sendSelectedFile();
+    bridge_->sendSelectedFile(upload_remote_path_edit_->text());
+}
+
+// 下载调用桥接层，窗口只负责收集输入。
+void MainWindow::downloadFile() {
+    bridge_->downloadFile(download_remote_path_edit_->text(), download_target_path_edit_->text());
 }
 
 } // namespace syncdemo

@@ -31,7 +31,10 @@ public slots:
     void submitPreviewPosition(double logical_x);
     void submitCommittedPosition(double logical_x);
     void selectFilePath(const QString& path);
-    void sendSelectedFile();
+    // 上传继续复用当前选中文件，远端相对路径允许为空。
+    void sendSelectedFile(const QString& remote_relative_path);
+    // 下载需要同时给出远端相对路径和本地目标路径。
+    void downloadFile(const QString& remote_relative_path, const QString& local_target_path);
 
 signals:
     // infoChanged mirrors TestInfo synchronization, while the others keep the

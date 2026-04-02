@@ -16,8 +16,8 @@ option(ENABLE_TESTS "Build local tests" ON)
 # The dependency is pinned so the GUI build stays reproducible.
 set(GDBUS_LEARN_GIT_REPOSITORY "https://github.com/SweerItTer/gdbus-learn.git" CACHE STRING
     "Git repository for the gdbus-learn dependency.")
-set(GDBUS_LEARN_GIT_TAG "94611e503f2cfcec045cf0bf2ba0fa62bebd16cc" CACHE STRING
-    "Git revision for the gdbus-learn dependency.")
+set(GDBUS_LEARN_GIT_TAG "master" CACHE STRING
+    "Git revision or branch for the gdbus-learn dependency.")
 
 # Local helper library for coordinate math and file-selection state.
 add_library(sync_math STATIC
@@ -77,7 +77,6 @@ find_program(GDBUS_CODEGEN_EXECUTABLE gdbus-codegen REQUIRED)
 
 set(GDBUS_COMMON_INCLUDE "${GDBUS_TEST_ROOT}/Common/Include")
 set(GDBUS_CLIENT_INCLUDE "${GDBUS_TEST_ROOT}/ClientProject/Include")
-set(GDBUS_SERVICE_INCLUDE "${GDBUS_TEST_ROOT}/ServiceProject/Include")
 set(GDBUS_SERVICE_LIBRARY_INCLUDE "${GDBUS_TEST_ROOT}/ServiceProject/Library/Include")
 set(GDBUS_XML "${GDBUS_TEST_ROOT}/Common/Interfaces/com.example.Training.xml")
 
@@ -140,25 +139,6 @@ target_link_libraries(gdbus_generated
         PkgConfig::GLIB
 )
 
-# The demo service executable lets the GUI run standalone for local verification.
-add_library(core STATIC
-    "${GDBUS_TEST_ROOT}/ServiceProject/Sources/TrainingService.cpp"
-)
-
-set_target_properties(core PROPERTIES POSITION_INDEPENDENT_CODE ON)
-
-target_include_directories(core
-    PUBLIC
-        "${GDBUS_SERVICE_INCLUDE}"
-)
-
-target_link_libraries(core
-    PUBLIC
-        training_common
-        training_utils
-        gdbus_generated
-)
-
 add_library(training SHARED
     "${GDBUS_TEST_ROOT}/ServiceProject/Library/Sources/TrainingLibrary.cpp"
 )
@@ -198,15 +178,6 @@ target_link_libraries(training_client_wrapper
 )
 
 add_dependencies(training_client_wrapper training)
-
-add_executable(training_service_gui_demo
-    "${GDBUS_TEST_ROOT}/ServiceProject/app/service_main.cpp"
-)
-
-target_link_libraries(training_service_gui_demo
-    PRIVATE
-        core
-)
 
 # Main GUI target.
 add_executable(sync_visualizer

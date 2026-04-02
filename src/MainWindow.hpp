@@ -26,7 +26,9 @@ private slots:
     void updateSelectedFile(const QString& path, bool has_selection);
     void showFileTransferResult(bool success, const QString& message);
     void chooseFile();
+    void chooseDownloadTarget();
     void sendSelectedFile();
+    void downloadFile();
 
 private:
     QLabel* title_label_{nullptr};
@@ -34,7 +36,13 @@ private:
     QLabel* file_transfer_label_{nullptr};
     QLabel* status_label_{nullptr};
     QLineEdit* file_path_edit_{nullptr};
+    // 上传区：源文件 + 可选远端相对路径。
+    QLineEdit* upload_remote_path_edit_{nullptr};
+    // 下载区：远端相对路径 + 本地落盘路径。
+    QLineEdit* download_remote_path_edit_{nullptr};
+    QLineEdit* download_target_path_edit_{nullptr};
     QPushButton* send_button_{nullptr};
+    QPushButton* download_button_{nullptr};
     TestInfoCanvas* canvas_{nullptr};
     TrainingClientBridge* bridge_{nullptr};
 };
